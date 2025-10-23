@@ -1,0 +1,12 @@
+[package]
+name = "rc_ex_2"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1.43", features = ["rt", "rt-multi-thread", "macros", "time", "sync", "test-util"] }
+tower = { version = "0.4", features = ["util"] }
+pin-project-lite = "0.2"
