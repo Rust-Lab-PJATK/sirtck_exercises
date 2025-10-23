@@ -3,7 +3,6 @@
 ## Jak oddać rozwiązanie
 - Stwórz branch z prefixem `C_EX_2`.
 - Na swoim branchu zaimplementuj brakujące fragmenty w pliku `src/lib.rs`, zastępując wszystkie wywołania `todo!()`.
-- Uruchom lokalnie testy (`cargo test`) aby upewnić się, że implementacja spełnia wymagania.
 - Stwórz Pull Request do głównego repozytorium z prefiksem `C_EX_2` w nazwie.
 - Poczekaj na wynik automatycznej oceny lub review.
 
