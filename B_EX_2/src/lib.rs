@@ -117,19 +117,19 @@ pub mod domain {
                 return Err(TaskParseError::InvalidFormat(line.to_string()));
             }
 
-            let priority_str = words[1].to_ascii_lowercase();
+            let priority_str = words[1];
 
             let priorities = Priority::all();
             let priority = priorities
                 .iter()
-                .find(|p| p.label() == priority_str)
-                .ok_or_else(|| TaskParseError::InvalidPriority(priority_str.clone()))?;
+                .find(|p| p.label() == priority_str.to_ascii_lowercase())
+                .ok_or_else(|| TaskParseError::InvalidPriority(priority_str.to_string()))?;
 
-            let status_str = words[2].to_ascii_uppercase();
+            let status_str = words[2];
             let statuses = Status::all();
             let status = statuses.iter()
-                .find(|s| s.label() == status_str)
-                .ok_or_else(|| TaskParseError::InvalidStatus(status_str.clone()))?;
+                .find(|s| s.label() == status_str.to_ascii_uppercase())
+                .ok_or_else(|| TaskParseError::InvalidStatus(status_str.to_string()))?;
 
             let title = words[0].to_string();
             Ok(Task{title, priority: *priority, status: *status})
@@ -217,9 +217,9 @@ pub fn format_summary(summary: &[StatusSummary]) -> Vec<String> {
 
 /// Full pipeline: read, parse, aggregate and format.
 pub fn run_from_reader<R: BufRead>(reader: R) -> Result<Vec<String>, TaskParseError> {
-    use std::io;
     let mut buffer = String::new();
-    io::stdin().lock().read_to_string(&mut buffer).expect(TaskParseError::NoTasks.to_string().as_str());
+    let mut reader = reader;
+    reader.read_to_string(&mut buffer).expect(TaskParseError::NoTasks.to_string().as_str());
     
     let parsed = parse_tasks(&buffer)?;
     let status_summary = summarize_by_status(&parsed);
