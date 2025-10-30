@@ -1,3 +1,3 @@
 pub fn main() {
-    println!("Hello Rust Lab")
+    println!("Hello Rust Lab");
 }
