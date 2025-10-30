@@ -1,0 +1,10 @@
+[package]
+name = "rb_ex_3"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+criterion = "0.5"

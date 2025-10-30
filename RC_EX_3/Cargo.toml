@@ -1,0 +1,10 @@
+[package]
+name = "rc_ex_3"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]
+rc_ex_3_macros = { path = "rc_ex_3_macros" }
