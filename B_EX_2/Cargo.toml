@@ -9,3 +9,4 @@ path = "src/lib.rs"
 [[bin]]
 name = "b_ex_2"
 path = "src/main.rs"
+[dependencies]
