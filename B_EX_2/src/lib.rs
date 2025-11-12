@@ -22,13 +22,31 @@ pub mod domain {
 
         /// Label shown in the report (`high`, `medium`, `low`).
         pub fn label(self) -> &'static str {
-            todo!("return the lowercase label for each priority")
+            match self {
+                Priority::High => "high",
+                Priority::Medium => "medium",
+                Priority::Low => "low",
+            }
         }
     }
 
     impl fmt::Display for Priority {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("print the label defined in Priority::label")
+            write!(f, "{}", self.label())
+        }
+    }
+
+    impl FromStr for Priority {
+        type Err = TaskParseError;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let trimmed = s.trim();
+            match trimmed.to_ascii_lowercase().as_str() {
+                "high" => Ok(Priority::High),
+                "medium" => Ok(Priority::Medium),
+                "low" => Ok(Priority::Low),
+                _ => Err(TaskParseError::InvalidPriority(trimmed.to_string())),
+            }
         }
     }
 
@@ -48,13 +66,30 @@ pub mod domain {
 
         /// Label used when printing to stdout (e.g. `TODO`, `IN_PROGRESS`, `DONE`).
         pub fn label(self) -> &'static str {
-            todo!("return the uppercase label for each status")
+            match self {Status::Todo => "TODO",
+            Status::InProgress => "IN_PROGRESS",
+            Status::Done => "DONE",
+            }
         }
     }
 
     impl fmt::Display for Status {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("print the label defined in Status::label")
+            write!(f, "{}", self.label())
+        }
+    }
+
+    impl FromStr for Status {
+        type Err = TaskParseError;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let trimmed = s.trim();
+            match trimmed.to_ascii_lowercase().as_str() {
+                "todo" => Ok(Status::Todo),
+                "in_progress" => Ok(Status::InProgress),
+                "done" => Ok(Status::Done),
+                _ => Err(TaskParseError::InvalidStatus(trimmed.to_string())),
+            }
         }
     }
 
@@ -73,7 +108,12 @@ pub mod domain {
 
     impl fmt::Display for TaskParseError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("map error variants to human readable messages defined in README")
+            match self {
+                TaskParseError::NoTasks => write!(f, "Brak zadan"),
+                TaskParseError::InvalidFormat(line) => write!(f, "Niepoprawny format linii: {}", line),
+                TaskParseError::InvalidPriority(value) => write!(f, "Nieznany priorytet: {}", value),
+                TaskParseError::InvalidStatus(value) => write!(f, "Nieznany status: {}", value),
+            }
         }
     }
 
@@ -92,7 +132,15 @@ pub mod domain {
 
         /// Parses a `title | priority | status` line.
         fn from_str(line: &str) -> Result<Self, Self::Err> {
-            todo!("split the fields, trim them and return errors that highlight the issue")
+            let parts: Vec<&str> = line.split('|').map(|s| s.trim()).collect();
+            if parts.len() != 3 {
+                return Err(TaskParseError::InvalidFormat(line.to_string()));
+            }
+
+            let title = parts[0].to_string();
+            let priority = parts[1].parse::<Priority>()?;
+            let status = parts[2].parse::<Status>()?;
+            Ok(Task { title, priority, status })
         }
     }
 }
@@ -109,7 +157,7 @@ pub struct StatusSummary {
 impl StatusSummary {
     /// Returns the number of tasks in this status.
     pub fn total(&self) -> usize {
-        todo!("sum all values stored in the counts map")
+        self.counts.values().sum()
     }
 }
 
@@ -117,7 +165,18 @@ impl StatusSummary {
 ///
 /// At least one valid task must be present or [`TaskParseError::NoTasks`] is returned.
 pub fn parse_tasks(input: &str) -> Result<Vec<Task>, TaskParseError> {
-    todo!("split the input into lines, skip blanks and delegate to Task::from_str")
+    let tasks: Result<Vec<Task>, TaskParseError> = input
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| line.parse::<Task>())
+        .collect();
+    let tasks = tasks?;
+
+    if tasks.is_empty() {
+        Err(TaskParseError::NoTasks)
+    } else {
+        Ok(tasks)
+    }
 }
 
 /// Builds summaries for every status in the required order.
@@ -125,7 +184,20 @@ pub fn parse_tasks(input: &str) -> Result<Vec<Task>, TaskParseError> {
 /// The result must contain entries for all statuses (`TODO`, `IN_PROGRESS`, `DONE`) even when the
 /// total count is zero. Each entry keeps per-priority counters within a `BTreeMap`.
 pub fn summarize_by_status(tasks: &[Task]) -> Vec<StatusSummary> {
-    todo!("initialise summaries for all statuses and increment counts per priority")
+    let mut summaries = Vec::new();
+    for status in Status::all(){
+        let mut counts = BTreeMap::new();
+        for priority in Priority::all(){
+            counts.insert(priority, 0);
+        }
+        for task in tasks {
+            if task.status == status {
+                *counts.entry(task.priority).or_insert(0) += 1;
+            }
+        }
+        summaries.push(StatusSummary { status, counts });
+    }
+    summaries
 }
 
 /// Formats aggregated data ready to be displayed.
@@ -134,12 +206,28 @@ pub fn summarize_by_status(tasks: &[Task]) -> Vec<StatusSummary> {
 /// `TODO: 2 (high: 1, medium: 1, low: 0)`
 /// while keeping priority order `high`, `medium`, `low`.
 pub fn format_summary(summary: &[StatusSummary]) -> Vec<String> {
-    todo!("build the expected lines based on summarize_by_status output")
+    summary.iter().map(|s| {
+        let total = s.total();
+        let priority_parts: Vec<String> = Priority::all()
+                .iter()
+                .map(|p| {
+                    let count = s.counts.get(p).unwrap_or(&0);
+                    format!("{}: {}", p.label(), count)
+                })
+                .collect();
+        format!("{}: {} ({})", s.status.label(), total, priority_parts.join(", "))
+    }).collect()
 }
 
 /// Full pipeline: read, parse, aggregate and format.
 pub fn run_from_reader<R: BufRead>(reader: R) -> Result<Vec<String>, TaskParseError> {
-    todo!("read the text, call parse_tasks -> summarize_by_status -> format_summary")
+    let mut buffer = String::new();
+    let mut reader = reader;
+    reader.read_to_string(&mut buffer).map_err(|_| TaskParseError::NoTasks)?;
+
+    let tasks = parse_tasks(&buffer)?;
+    let summary = summarize_by_status(&tasks);
+    Ok(format_summary(&summary))
 }
 
 /// Convenience API for tests that accepts input as a single string.
