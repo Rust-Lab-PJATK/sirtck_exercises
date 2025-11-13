@@ -1,0 +1,15 @@
+[package]
+name = "b_ex_5"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+preview = []
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "b_ex_5"
+path = "src/main.rs"
