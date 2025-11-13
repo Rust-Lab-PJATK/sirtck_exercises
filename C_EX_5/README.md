@@ -57,6 +57,3 @@
 - Jeśli korzystasz z `thiserror`, pamiętaj o dodaniu go w `Cargo.toml`; alternatywnie możesz samodzielnie zaimplementować `Display` i `Error` dla `GridBuildError`.
 - Testy oczekują, że `Rule` można przekazać jako closurę – nie zapomnij o blanket-impl z `for<'a>`.
 
-## Uwaga
-- Modyfikuj tylko pliki w katalogach `exercices/C_EX_5` i `tasks/T_C_EX_5`. Instrukcję realizuj w `src/lib.rs` w miejscach oznaczonych `todo!()`.
-- Po zakończeniu prac uruchom `cargo test` lokalnie, aby upewnić się, że wszystkie scenariusze są pokryte.
