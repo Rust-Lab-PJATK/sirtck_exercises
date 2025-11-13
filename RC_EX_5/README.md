@@ -97,7 +97,7 @@
 - W `Drop` możesz użyć `match self.phase` by dokładnie wiedzieć, którą fazę należy zgłosić przez `CancellationHandle`.
 - `debug_assert!` w każdym przejściu stanu pomoże Ci szybko wykryć podwójne wywołanie `resolve` lub `connect`.
 - Jeśli chcesz wystawiać dodatkową diagnostykę, rozważ `#[derive(Debug)]` dla własnych enumów stanów – testy sprawdzają głównie zachowanie, nie format.
-- Uruchamiaj `cargo test` zarówno w `exercices/RC_EX_5`, jak i `tasks/T_RC_EX_5`, aby złapać regresje w kontrolowanych backendach.
 
 ## Uwaga
 Podczas rozwiązywania zadania modyfikuj tylko wskazane miejsca. Zmiany w pozostałych częściach projektu mogą spowodować odrzucenie rozwiązania.
+
