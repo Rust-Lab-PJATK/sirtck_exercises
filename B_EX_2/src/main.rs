@@ -1,4 +1,4 @@
-use std::io::{self, BufRead};
+use std::io::{self};
 
 use b_ex_2::run_from_reader;
 
