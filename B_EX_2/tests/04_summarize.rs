@@ -1,6 +1,6 @@
 use b_ex_2::{summarize_by_status};
 use b_ex_2::domain::{Priority, Status};
-use b_ex_2::domain::Priority;
+
 fn expect_counts(summary: &b_ex_2::StatusSummary, high: usize, medium: usize, low: usize) {
     let get = |p: Priority| *summary.counts.get(&p).unwrap_or(&0);
     assert_eq!(get(Priority::High), high, "unexpected high count for {:?}", summary.status);
