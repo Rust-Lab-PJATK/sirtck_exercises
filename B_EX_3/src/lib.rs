@@ -22,7 +22,6 @@ pub mod release {
         /// Wszystkie etapy w kolejności wymaganej przez `render_checklist`.
         pub fn all() -> [ReleaseStage; 3] {
             [ReleaseStage::Plan, ReleaseStage::Deploy, ReleaseStage::Verify]
-            //todo!("zwróć tablicę z wariantami w kolejności PLAN -> DEPLOY -> VERIFY")
         }
 
         /// Etykieta wykorzystywana w komunikatach tekstowych.
@@ -38,7 +37,6 @@ pub mod release {
     impl fmt::Display for ReleaseStage {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{}", self.label())
-            //todo!("wykorzystaj ReleaseStage::label w implementacji Display")
         }
     }
 
@@ -130,7 +128,6 @@ pub mod release {
                     write!(f, "Missing step owner for: {}", description),
                 _ => write!(f, "Unknown error")
             }
-            //todo!("zamień warianty na zrozumiałe komunikaty dla użytkownika")
         }
     }
 
@@ -149,7 +146,6 @@ pub mod release {
         /// Tworzy builder, który pozwoli zebrać wszystkie dane planu.
         pub fn builder(name: impl Into<String>) -> ReleasePlanBuilder {
             ReleasePlanBuilder::new(name)
-            //todo!("zainicjuj builder z nazwą planu")
         }
 
         /// Zwraca kroki danego etapu w kolejności dodania.
@@ -189,28 +185,24 @@ pub mod release {
         /// Utwórz builder z nazwą planu (wykorzystywane przez `ReleasePlan::builder`).
         pub fn new(name: impl Into<String>) -> Self {
             ReleasePlanBuilder {name: name.into(), owner: None, window: None, steps: Vec::new() }
-            //todo!("zapisz nazwę, a pozostałe pola ustaw na wartości domyślne")
         }
 
         /// Ustaw właściciela całego planu. Możesz wywołać wielokrotnie, ostatnia wartość wygrywa.
         pub fn owner(mut self, owner: impl Into<String>) -> Self {
             self.owner = Some(owner.into());
             self
-            //todo!("zapisz ownera i zwróć builder dla chainingu")
         }
 
         /// Określ okno czasowe wydania.
         pub fn window(mut self, start: impl Into<String>, end: impl Into<String>) -> Self {
             self.window = Some(DateWindow::new(start, end));
             self
-            //todo!("stwórz DateWindow i dodaj go do buildera")
         }
 
         /// Dodaj krok do planu (kolejność dodania jest zachowywana w obrębie etapu).
         pub fn add_step(mut self, step: StepSpec) -> Self {
             self.steps.push(step);
             self
-            //todo!("dodaj specyfikację do bufora i zwróć builder")
         }
 
         /// Finalizuje builder i zwraca gotowy plan lub błąd walidacji.
