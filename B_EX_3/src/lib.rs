@@ -7,6 +7,7 @@ pub use release::{
 
 /// Logika domenowa planu wydania.
 pub mod release {
+    use std::error::Error;
     use super::fmt;
 
     /// Etapy, które muszą pojawić się w planie i określają kolejność kroków.
@@ -20,18 +21,22 @@ pub mod release {
     impl ReleaseStage {
         /// Wszystkie etapy w kolejności wymaganej przez `render_checklist`.
         pub fn all() -> [ReleaseStage; 3] {
-            todo!("zwróć tablicę z wariantami w kolejności PLAN -> DEPLOY -> VERIFY")
+            [ReleaseStage::Plan, ReleaseStage::Deploy, ReleaseStage::Verify]
         }
 
         /// Etykieta wykorzystywana w komunikatach tekstowych.
         pub fn label(self) -> &'static str {
-            todo!("zwróć krótką nazwę etapu typu PLAN / DEPLOY / VERIFY")
+            match self {
+                ReleaseStage::Plan => "PLAN",
+                ReleaseStage::Deploy => "DEPLOY",
+                ReleaseStage::Verify => "VERIFY",
+            }
         }
     }
 
     impl fmt::Display for ReleaseStage {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("wykorzystaj ReleaseStage::label w implementacji Display")
+            write!(f, "{}", self.label())
         }
     }
 
@@ -45,7 +50,7 @@ pub mod release {
     impl DateWindow {
         /// Tworzy okno czasowe z datą startu oraz końca.
         pub fn new(start: impl Into<String>, end: impl Into<String>) -> Self {
-            todo!("zapisz przekazane wartości w polach struktury")
+            DateWindow {start: start.into(), end: end.into()}
         }
     }
 
@@ -68,27 +73,35 @@ pub mod release {
     impl StepSpec {
         /// Buduje specyfikację kroku bez przypisanego właściciela.
         pub fn new(stage: ReleaseStage, description: impl Into<String>) -> Self {
-            todo!("zainicjuj strukturę z opisem i etapem, pozostawiając owner == None")
+            StepSpec {
+                stage: ReleaseStage::from(stage),
+                description: description.into(),
+                owner: None,
+            }
         }
 
         /// Ustawia właściciela kroku, zwracając zmodyfikowaną specyfikację.
         pub fn with_owner(mut self, owner: impl Into<String>) -> Self {
-            todo!("zapisz przekazane imię/alias właściciela i zwróć Self")
+            self.owner = Some(owner.into());
+            self
         }
 
         /// Zwraca etap kroku (potrzebne w testach i przy budowaniu planu).
         pub fn stage(&self) -> ReleaseStage {
-            todo!("zwróć etap z pola stage")
+            self.stage
         }
 
         /// Opis kroku bez modyfikacji.
         pub fn description(&self) -> &str {
-            todo!("daj dostęp do opisu kroku")
+            self.description.as_str()
         }
 
         /// Zwraca właściciela, jeśli został ustawiony.
         pub fn owner(&self) -> Option<&str> {
-            todo!("zwróć opcjonalnego ownera jako &str")
+            match self.owner {
+                Some(ref owner) => Some(owner),
+                None => None,
+            }
         }
     }
 
@@ -107,7 +120,14 @@ pub mod release {
 
     impl fmt::Display for BuildError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("zamień warianty na zrozumiałe komunikaty dla użytkownika")
+            match self {
+                BuildError::MissingOwner => write!(f, "Missing owner"),
+                BuildError::MissingWindow => write!(f, "Missing window"),
+                BuildError::NoSteps => write!(f, "No steps"),
+                BuildError::MissingStepOwner { description } =>
+                    write!(f, "Missing step owner for: {}", description),
+                _ => write!(f, "Unknown error")
+            }
         }
     }
 
@@ -125,12 +145,14 @@ pub mod release {
     impl ReleasePlan {
         /// Tworzy builder, który pozwoli zebrać wszystkie dane planu.
         pub fn builder(name: impl Into<String>) -> ReleasePlanBuilder {
-            todo!("zainicjuj builder z nazwą planu")
+            ReleasePlanBuilder::new(name)
         }
 
         /// Zwraca kroki danego etapu w kolejności dodania.
         pub fn steps_for(&self, stage: ReleaseStage) -> Vec<&ReleaseStep> {
-            todo!("przefiltruj kroki po etapie i zachowaj ich oryginalną kolejność")
+            self.steps.iter()
+                .filter(|step| step.stage == stage)
+                .collect()
         }
 
         /// Generuje listę linii gotową do wypisania w CLI.
@@ -138,7 +160,15 @@ pub mod release {
         /// Pierwsza linia zawiera nazwę planu i okno czasowe, kolejne linie to kroki `PLAN`, potem
         /// `DEPLOY`, a na końcu `VERIFY`. Przy każdym kroku wypisz opis oraz właściciela.
         pub fn render_checklist(&self) -> Vec<String> {
-            todo!("zgrupuj kroki według etapu i zbuduj oczekiwane linie tekstu")
+            let mut lines = Vec::new();
+            lines.push(format!("{}: {} to {}", self.name, self.window.start, self.window.end));
+            for stage in ReleaseStage::all() {
+                for step in self.steps_for(stage) {
+                    lines.push(format!("{} - {} ({})", stage.label(), step.description, step.owner));
+                }
+            }
+
+            lines
         }
     }
 
@@ -154,29 +184,65 @@ pub mod release {
     impl ReleasePlanBuilder {
         /// Utwórz builder z nazwą planu (wykorzystywane przez `ReleasePlan::builder`).
         pub fn new(name: impl Into<String>) -> Self {
-            todo!("zapisz nazwę, a pozostałe pola ustaw na wartości domyślne")
+            ReleasePlanBuilder {name: name.into(), owner: None, window: None, steps: Vec::new() }
         }
 
         /// Ustaw właściciela całego planu. Możesz wywołać wielokrotnie, ostatnia wartość wygrywa.
         pub fn owner(mut self, owner: impl Into<String>) -> Self {
-            todo!("zapisz ownera i zwróć builder dla chainingu")
+            self.owner = Some(owner.into());
+            self
         }
 
         /// Określ okno czasowe wydania.
         pub fn window(mut self, start: impl Into<String>, end: impl Into<String>) -> Self {
-            todo!("stwórz DateWindow i dodaj go do buildera")
+            self.window = Some(DateWindow::new(start, end));
+            self
         }
 
         /// Dodaj krok do planu (kolejność dodania jest zachowywana w obrębie etapu).
         pub fn add_step(mut self, step: StepSpec) -> Self {
-            todo!("dodaj specyfikację do bufora i zwróć builder")
+            self.steps.push(step);
+            self
         }
 
         /// Finalizuje builder i zwraca gotowy plan lub błąd walidacji.
         pub fn build(self) -> Result<ReleasePlan, BuildError> {
-            todo!(
-                "sprawdź wymagane pola, uzupełnij brakujących właścicieli i zbuduj ReleasePlan"
-            )
+            let plan_owner = match self.owner {
+                Some(owner) => owner,
+                None => return Err(BuildError::MissingOwner),
+            };
+
+            let window = match self.window {
+                Some(window) => window,
+                None => return Err(BuildError::MissingWindow),
+            };
+
+            if self.steps.is_empty() {
+                return Err(BuildError::NoSteps);
+            }
+
+            let mut release_steps = Vec::new();
+            for spec in self.steps {
+                let owner = match spec.owner() {
+                    Some(owner) => owner.to_string(),
+                    None => plan_owner.clone(),
+                };
+
+                release_steps.push(ReleaseStep {
+                    stage: spec.stage(),
+                    description: spec.description().to_string(),
+                    owner,
+                });
+            }
+
+            let plan = ReleasePlan {
+                name: self.name,
+                owner: plan_owner,
+                window,
+                steps: release_steps,
+            };
+
+            Ok(plan)
         }
     }
 }
