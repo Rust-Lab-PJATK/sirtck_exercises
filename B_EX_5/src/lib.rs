@@ -14,7 +14,11 @@ pub mod config {
 
         impl FeatureState {
             pub fn label(&self) -> String {
-                todo!("zwróć napis opisujący stan, np. enabled/disabled/percentage:25")
+                match self {
+                    FeatureState::Enabled => "enabled".to_string(),
+                    FeatureState::Disabled => "disabled".to_string(),
+                    FeatureState::Percentage(p) => format!("percentage:{}", p),
+                }
             }
         }
 
@@ -22,7 +26,19 @@ pub mod config {
             type Err = ConfigError;
 
             fn from_str(raw: &str) -> Result<Self, Self::Err> {
-                todo!("parsuj literały enabled/disabled/percentage:<0-100>")
+                let trimmed = raw.trim().to_lowercase();
+                match trimmed.as_str() {
+                    "enabled" => Ok(FeatureState::Enabled),
+                    "disabled" => Ok(FeatureState::Disabled),
+                    s if s.starts_with("percentage:") => {
+                        let num_str = &s[11..];
+                        match num_str.parse::<u8>() {
+                            Ok(num) if num <= 100 => Ok(FeatureState::Percentage(num)),
+                            _ => Err(ConfigError::InvalidPercentage { raw: num_str.to_string() }),
+                        }
+                    }
+                    _ => Err(ConfigError::InvalidState { raw: raw.to_string() }),
+                }
             }
         }
 
@@ -35,7 +51,23 @@ pub mod config {
 
         impl FeatureFlag {
             pub fn from_line(line: &str) -> Result<Self, ConfigError> {
-                todo!("rozbij obszar i nazwę flagi oraz sparsuj stan")
+                let parts: Vec<&str> = line.split('=').collect();
+                if parts.len() != 2 {
+                    return Err(ConfigError::InvalidFormat { line: line.to_string() });
+                }
+
+                let left = parts[0].trim();
+                let right = parts[1].trim();
+                let scope_name: Vec<&str> = left.split("::").collect();
+                if scope_name.len() != 2 {
+                    return Err(ConfigError::InvalidFormat { line: line.to_string() });
+                }
+
+                let scope = scope_name[0].trim().to_string();
+                let name = scope_name[1].trim().to_string();
+                let state = FeatureState::from_str(right)?;
+                
+                Ok(FeatureFlag { scope, name, state })
             }
         }
 
@@ -50,7 +82,13 @@ pub mod config {
 
         impl fmt::Display for ConfigError {
             fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-                todo!("dopasuj warianty błędów do opisów z README")
+                match self {
+                    ConfigError::InvalidFormat { line } => write!(f, "Niepoprawny format linii: {}", line),
+                    ConfigError::InvalidState { raw } => write!(f, "Nieznany stan flagi: {}", raw),
+                    ConfigError::InvalidPercentage { raw } => write!(f, "Niepoprawny procent: {}", raw),
+                    ConfigError::DuplicateFlag { scope, name } => write!(f, "Zduplikowana flaga: {}::{}", scope, name),
+                    ConfigError::Empty => write!(f, "Brak flag konfiguracyjnych"),
+                }
             }
         }
 
@@ -63,11 +101,27 @@ pub mod config {
         use std::io::BufRead;
 
         pub fn parse_flags<R: BufRead>(reader: R) -> Result<Vec<FeatureFlag>, ConfigError> {
-            todo!("wczytaj linie z BufRead, pomijaj komentarze i puste wiersze")
+            let mut flags = Vec::new();
+
+            for line in reader.lines() {
+                let line = line.map_err(|_| ConfigError::Empty)?; // Handle I/O errors
+                let trimmed = line.trim();
+                if trimmed.is_empty() || trimmed.starts_with('#') {
+                    continue; // Skip empty lines and comments
+                }
+
+                flags.push(FeatureFlag::from_line(trimmed)?);
+            }
+
+            if flags.is_empty() {
+                return Err(ConfigError::Empty);
+            }
+            Ok(flags)
         }
 
         pub fn load_registry<R: BufRead>(reader: R) -> Result<FeatureRegistry, ConfigError> {
-            todo!("zbuduj FeatureRegistry na podstawie parse_flags")
+            let flags = parse_flags(reader)?;
+            FeatureRegistry::from_flags(flags)
         }
     }
 
@@ -82,25 +136,45 @@ pub mod config {
 
         impl FeatureRegistry {
             pub fn from_flags(flags: Vec<FeatureFlag>) -> Result<Self, ConfigError> {
-                todo!("utwórz rejestr i dodaj wszystkie flagi, propagując błędy insert")
+                let mut registry = FeatureRegistry::default();
+                for flag in flags {
+                    registry.insert(flag)?;
+                }
+                Ok(registry)
             }
 
             pub fn insert(&mut self, flag: FeatureFlag) -> Result<(), ConfigError> {
-                todo!("dodaj flagę, dbając o kolejność i brak duplikatów")
+                let scope = flag.scope.clone();
+                let name = flag.name.clone();
+
+                let entry = self.entries.entry(scope.clone()).or_insert_with(Vec::new);
+                if entry.iter().any(|f| f.name == name) {
+                    return Err(ConfigError::DuplicateFlag { scope, name });
+                }
+
+                entry.push(flag);
+                entry.sort_by(|a, b| a.name.cmp(&b.name));
+                Ok(())
             }
 
             pub fn flags_for(&self, scope: &str) -> Option<&[FeatureFlag]> {
-                todo!("zwróć wycinek flag dla wskazanego obszaru")
+                self.entries.get(scope).map(|v| v.as_slice())
             }
 
             pub fn scopes(&self) -> impl Iterator<Item = (&str, &[FeatureFlag])> {
-                todo!("zwróć iterator po parach (obszar, flagi[])")
+                self.entries.iter().map(|(scope, flags)| (scope.as_str(), flags.as_slice()))
             }
         }
 
         #[cfg(feature = "preview")]
         pub fn render_preview(registry: &FeatureRegistry) -> String {
-            todo!("przygotuj podgląd rozmieszczonych flag z etykietami")
+            let mut result = String::new();
+            for (scope, flags) in registry.scopes() {
+                for flag in flags {
+                    result.push_str(&format!("{}::{} -> {}\n", scope, flag.name, flag.state.label()));
+                }
+            }
+            result
         }
     }
 }
