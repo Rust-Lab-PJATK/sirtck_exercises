@@ -1,4 +1,4 @@
-use std::any::{Any, TypeId};
+use std::any::{type_name, Any, TypeId};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -72,29 +72,58 @@ impl<C, H> TypedHandler<C, H> {
 
 impl<C, H> ErasedHandler for TypedHandler<C, H>
 where
-    C: Command + 'static,
+    C: Command + 'static + Send + Sync,
     C::Output: 'static,
-    H: CommandHandler<C>,
+    H: CommandHandler<C> + Send + Sync,
 {
     fn handle(&self, command: &dyn Any) -> Result<Box<dyn Any>, DispatchError> {
-        todo!("Spróbuj rzutować `command` na `&C` i zwróć wynik jako `Box<dyn Any>`");
+        let cmd_opt = command.downcast_ref::<C>();
+
+        if let Some(cmd) = cmd_opt {
+            return Ok(Box::new(self.handler.handle(cmd)));
+        } else {
+            return Err(DispatchError::WrongCommandType {
+                command: type_name::<C>(),
+            });
+        }
     }
 }
 
 impl CommandBus {
     /// Tworzy pustą szynę komend.
     pub fn new() -> Self {
-        todo!("Zainicjalizuj mapę handlerów");
+        Self {
+            handlers: HashMap::default(),
+        }
     }
 
     /// Rejestruje handler dla komendy `C`. Zwraca błąd, gdy handler już istnieje.
     pub fn register<C, H>(&mut self, handler: H) -> Result<(), DispatchError>
     where
-        C: Command + 'static,
+        C: Command + 'static + Send + Sync,
         C::Output: 'static,
         H: CommandHandler<C> + Send + Sync + 'static,
     {
-        todo!("Dodaj wpis do mapy z użyciem `TypeId::of::<C>()`");
+        let new_handler = HandlerEntry {
+            command_name: type_name::<C>(),
+            output_name: type_name::<C::Output>(),
+            handler: Box::new(TypedHandler::new(handler)),
+        };
+
+        let key = TypeId::of::<C>();
+
+        let prev = self.handlers.insert(key, new_handler);
+        if let Some(a) = prev {
+            let err = DispatchError::HandlerAlreadyRegistered {
+                command: a.command_name,
+            };
+
+            self.handlers.insert(key, a);
+
+            Err(err)
+        } else {
+            Ok(())
+        }
     }
 
     /// Sprawdza, czy handler dla komendy `C` został już zarejestrowany.
@@ -102,7 +131,7 @@ impl CommandBus {
     where
         C: Command + 'static,
     {
-        todo!("Wykorzystaj identyfikator typu komendy");
+        self.handlers.contains_key(&TypeId::of::<C>())
     }
 
     /// Uruchamia handler dla komendy `C` i zwraca jego wynik.
@@ -111,7 +140,24 @@ impl CommandBus {
         C: Command + 'static,
         C::Output: 'static,
     {
-        todo!("Wyszukaj handler, wywołaj go i rzutuj wynik z powrotem na `C::Output`");
+        let handler_opt = self.handlers.get(&TypeId::of::<C>());
+
+        if handler_opt.is_none() {
+            return Err(DispatchError::HandlerNotFound {
+                command: type_name::<C>(),
+            });
+        }
+
+        let handler = handler_opt.unwrap();
+
+        let retval = handler.handler.handle(command)?;
+        if let Ok(ret) = retval.downcast::<C::Output>() {
+            return Ok(*ret);
+        } else {
+            return Err(DispatchError::IncompatibleOutput {
+                command: type_name::<C>(),
+            });
+        }
     }
 }
 
