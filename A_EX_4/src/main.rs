@@ -1,54 +1,65 @@
 use std::io;
 
-/// Zbiera tematy z pojedynczej linii wejścia rozdzielonej przecinkami.
-pub fn collect_topics(line: &str) -> Result<Vec<String>, String> {
-    let topics: Vec<String> = line
-        .split(',')
-        .map(|s| s.trim())
-        .filter(|s| !s.is_empty())
-        .map(|s| s.to_string())
-        .collect();
+/// Parsuje liczby całkowite z linii tekstu.
+pub fn parse_numbers(line: &str) -> Result<Vec<i32>, String> {
+    let mut numbers = Vec::new();
 
-    if topics.is_empty() {
-        Err("Brak tematów do przećwiczenia.".to_string())
+    for token in line.split_whitespace() {
+        match token.parse::<i32>() {
+            Ok(num) => numbers.push(num),
+            Err(_) => return Err(format!("Niepoprawna liczba: {}", token)),
+        }
+    }
+
+    if numbers.is_empty() {
+        Err("Brak liczb do przeanalizowania.".to_string())
     } else {
-        Ok(topics)
+        Ok(numbers)
     }
 }
 
-/// Buduje numerowaną checklistę w formacie `"{}. [ ] {}"` dla każdego tematu.
-pub fn format_checklist(items: &[String]) -> Vec<String> {
-    items
-        .iter()
-        .enumerate()
-        .map(|(i, item)| format!("{}. [ ] {}", i + 1, item))
-        .collect()
+/// Zwraca (count, min, max, sum)
+pub fn summarize_numbers(numbers: &[i32]) -> (usize, i32, i32, i32) {
+    let count = numbers.len();
+    let mut min = numbers[0];
+    let mut max = numbers[0];
+    let mut sum = 0;
+
+    for &n in numbers {
+        if n < min {
+            min = n;
+        }
+        if n > max {
+            max = n;
+        }
+        sum += n;
+    }
+
+    (count, min, max, sum)
 }
 
-/// Tworzy linię podsumowania z liczbą elementów i liczbą znaków bez spacji.
-pub fn build_summary(items: &[String]) -> String {
-    let count = items.len();
+/// Buduje raport tekstowy.
+pub fn describe_numbers(numbers: &[i32]) -> Vec<String> {
+    let (count, min, max, sum) = summarize_numbers(numbers);
 
-    let char_count: usize = items
+    let numbers_as_text = numbers
         .iter()
-        .map(|topic| topic.chars().filter(|c| !c.is_whitespace()).count())
-        .sum();
+        .map(|n| n.to_string())
+        .collect::<Vec<String>>()
+        .join(" ");
 
-    format!(
-        "Podsumowanie: {} elementów, {} znaków (bez spacji)",
-        count, char_count
-    )
+    vec![
+        format!("Liczby ({}): {}", count, numbers_as_text),
+        format!("Minimum: {}", min),
+        format!("Maksimum: {}", max),
+        format!("Suma: {}", sum),
+    ]
 }
 
-/// Orkiestruje cały raport.
-pub fn generate_report(line: &str) -> Result<Vec<String>, String> {
-    let topics = collect_topics(line)?;
-    let mut result = format_checklist(&topics);
-
-    let summary = build_summary(&topics);
-    result.push(summary);
-
-    Ok(result)
+/// Spina całość.
+pub fn run_analysis(line: &str) -> Result<Vec<String>, String> {
+    let numbers = parse_numbers(line)?;
+    Ok(describe_numbers(&numbers))
 }
 
 pub fn main() {
@@ -59,12 +70,12 @@ pub fn main() {
         return;
     }
 
-    match generate_report(buffer.as_str()) {
+    match run_analysis(buffer.as_str()) {
         Ok(lines) => {
             for line in lines {
-                println!("{line}");
+                println!("{}", line);
             }
         }
-        Err(message) => println!("{message}"),
+        Err(message) => println!("{}", message),
     }
 }
