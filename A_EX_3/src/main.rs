@@ -1,21 +1,52 @@
 use std::io;
 
 /// Interpretuje jedną linię wejścia.
-/// - `Ok(Some(value))` oznacza liczbę całkowitą, którą trzeba dodać do sumy.
-/// - `Ok(None)` oznacza komendę zakończenia (`koniec`).
-/// - `Err(message)` zawiera komunikat, który należy wypisać na stdout.
 pub fn parse_line(line: &str) -> Result<Option<i32>, String> {
-    todo!()
+    let trimmed = line.trim();
+
+    // pusta linia
+    if trimmed.is_empty() {
+        return Err("Wpisz liczbę lub 'koniec'.".to_string());
+    }
+
+    // komenda zakończenia
+    if trimmed == "koniec" {
+        return Ok(None);
+    }
+
+    // próba parsowania liczby
+    match trimmed.parse::<i32>() {
+        Ok(value) => Ok(Some(value)),
+        Err(_) => Err(format!("Niepoprawna liczba: {}", trimmed)),
+    }
 }
 
 /// Przetwarza sekwencję linii tekstu i zwraca komunikaty do wypisania przez program.
-/// Powinna używać `parse_line`, aktualizować sumę liczb i zakończyć działanie po `Ok(None)`.
 pub fn run_session<I>(lines: I) -> Vec<String>
 where
     I: IntoIterator,
     I::Item: AsRef<str>,
 {
-    todo!()
+    let mut total = 0;
+    let mut output = Vec::new();
+
+    for line in lines {
+        match parse_line(line.as_ref()) {
+            Ok(Some(value)) => {
+                total += value;
+                output.push(format!("Aktualna suma: {}", total));
+            }
+            Ok(None) => {
+                output.push(format!("Zamykam program. Suma: {}", total));
+                break;
+            }
+            Err(message) => {
+                output.push(message);
+            }
+        }
+    }
+
+    output
 }
 
 pub fn main() {
