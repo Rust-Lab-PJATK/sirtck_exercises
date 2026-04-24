@@ -5,7 +5,7 @@ use std::io;
 /// Zwraca `Err("Brak danych")`, gdy po przetworzeniu brak liter.
 pub fn normalize_letters(input: &str) -> Result<Vec<char>, String> {
 
-    let mut result = Vec:: new();
+
     let input = input.trim();
 
     let letters: Vec<char> = input.chars().map(|c| c.to_ascii_lowercase())
@@ -17,8 +17,11 @@ pub fn normalize_letters(input: &str) -> Result<Vec<char>, String> {
             result.push(c.to_ascii_lowercase().next().unwrap());
 
    */
-
-    OK(letters, result);
+    if letters.is_empty() {
+        Err("Brak danych".to_string())
+    } else {
+        Ok(letters)
+    }
 }
 
 /// Buduje histogram wystąpień liter na podstawie wektora znaków.
@@ -26,12 +29,12 @@ pub fn build_histogram(letters: &[char]) -> BTreeMap<char, usize> {
 
     let mut counts = BTreeMap::new();
 
-    for a in letters {
+    for &ch in letters {
 
-        count.entry(ch).and_modify(|c| *c += 1).or_insert(1);
+        counts.entry(ch).and_modify(|c| *c += 1).or_insert(1);
     }
 
-    Ok(counts)
+    counts
 }
 
 /// Formatuje histogram do wypisania na stdout jako linie `litera: liczba`.
