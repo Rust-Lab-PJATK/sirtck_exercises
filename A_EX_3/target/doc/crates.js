@@ -1,1 +1,0 @@
-window.ALL_CRATES = ["a_ex_3"];

@@ -1,1 +1,0 @@
-Matches<'_, for<'a> fn(&'a char) -> bool {char::methods::<impl char>::is_ascii_digit}>
