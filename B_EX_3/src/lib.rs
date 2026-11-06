@@ -7,7 +7,6 @@ pub use release::{
 
 /// Logika domenowa planu wydania.
 pub mod release {
-    use std::fmt::format;
     use super::fmt;
 
     /// Etapy, które muszą pojawić się w planie i określają kolejność kroków.
