@@ -209,9 +209,27 @@ pub mod release {
 
         /// Finalizuje builder i zwraca gotowy plan lub błąd walidacji.
         pub fn build(self) -> Result<ReleasePlan, BuildError> {
-            todo!(
-                "sprawdź wymagane pola, uzupełnij brakujących właścicieli i zbuduj ReleasePlan"
-            )
+            if self.owner.is_none() {
+                return Err(BuildError::MissingOwner)
+            }
+            if self.window.is_none() {
+                return Err(BuildError::MissingWindow)
+            }
+            if self.steps.is_empty() {
+                return Err(BuildError::NoSteps)
+            }
+            Ok(ReleasePlan {
+                name: self.name,
+                owner: self.owner.clone().unwrap(),
+                window: self.window.unwrap(),
+                steps: self.steps.into_iter().map(|step|
+                    ReleaseStep {
+                        stage: step.stage(),
+                        description: step.description().to_string(),
+                        owner: step.owner().map(String::from).unwrap_or_else(|| self.owner.clone().unwrap()),
+                    }
+                ).collect()
+            })
         }
     }
 }
