@@ -230,8 +230,6 @@ pub fn run_from_reader<R: BufRead>(reader: R) -> Result<Vec<String>, TaskParseEr
     let summaries = summarize_by_status(&tasks);
     let formatted = format_summary(&summaries);
     return Ok(formatted);
-
-    todo!("read the text, call parse_tasks -> summarize_by_status -> format_summary")
 }
 
 /// Convenience API for tests that accepts input as a single string.
