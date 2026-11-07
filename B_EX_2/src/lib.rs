@@ -226,7 +226,7 @@ pub fn run_from_reader<R: BufRead>(reader: R) -> Result<Vec<String>, TaskParseEr
     let mut reader = reader;
     let mut input = String::new();
     reader.read_to_string(&mut input).map_err(|_| TaskParseError::NoTasks)?;
-    let mut tasks = parse_tasks(&input)?;
+    let tasks = parse_tasks(&input)?;
     let summaries = summarize_by_status(&tasks);
     let formatted = format_summary(&summaries);
     return Ok(formatted);
