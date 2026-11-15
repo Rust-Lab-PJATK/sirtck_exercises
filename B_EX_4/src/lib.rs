@@ -24,7 +24,11 @@ pub mod report {
     impl TestOutcome {
         /// Nazwa wyświetlana w raporcie.
         pub fn label(&self) -> &'static str {
-            todo!("zwróć skróconą nazwę wyniku: pass/fail/skip")
+            match self {
+                TestOutcome::Passed => "pass",
+                TestOutcome::Failed => "fail",
+                TestOutcome::Skipped => "skip"
+            }
         }
     }
 
@@ -32,7 +36,14 @@ pub mod report {
         type Err = ReportError;
 
         fn from_str(raw: &str) -> Result<Self, Self::Err> {
-            todo!("parsuj wyniki pass/fail/skip niezależnie od wielkości liter")
+            let lower = raw.to_ascii_lowercase();
+            let lower = lower.as_str();
+            match lower {
+                "pass" => Ok(TestOutcome::Passed),
+                "fail" => Ok(TestOutcome::Failed),
+                "skip" => Ok(TestOutcome::Skipped),
+                _ => Err(ReportError::InvalidOutcome { raw: raw.to_string() })
+            }
         }
     }
 
@@ -48,7 +59,28 @@ pub mod report {
     impl TestCase {
         /// Tworzy wpis na podstawie linii `suite::case | outcome | duration_ms`.
         pub fn from_line(line: &str) -> Result<Self, ReportError> {
-            todo!("rozbij linię, zweryfikuj format i przygotuj strukturę TestCase")
+            let tokens = line.split(" | ").collect::<Vec<_>>();
+            if tokens.len() != 3 {
+                return Err(ReportError::InvalidFormat { line: line.to_string() });
+            }
+            let (suite, case) = match tokens[0].split_once("::") {
+                Some(pair) => pair,
+                None => return Err(ReportError::InvalidFormat { line: line.to_string() })
+            };
+            let suite = suite.trim().to_string();
+            let case = case.trim().to_string();
+            let outcome = tokens[1].trim();
+            let duration_ms = tokens[2].trim();
+
+            let outcome = TestOutcome::from_str(outcome)?;
+            let duration_ms = duration_ms.parse::<u64>().map_err(|e| ReportError::InvalidDuration { raw: duration_ms.to_string() })?;
+
+            Ok(TestCase {
+                suite,
+                case,
+                outcome,
+                duration_ms
+            })
         }
     }
 
@@ -74,7 +106,12 @@ pub mod report {
 
     impl fmt::Display for ReportError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            todo!("zamień warianty błędów na czytelne komunikaty")
+            match self {
+                ReportError::InvalidFormat { line } => write!(f, "Invalid format: {}", line),
+                ReportError::InvalidOutcome { raw } => write!(f, "Invalid outcome: {}", raw),
+                ReportError::InvalidDuration { raw } => write!(f, "Invalid duration: {}", raw),
+                ReportError::NoCases => write!(f, "No cases to report")
+            }
         }
     }
 
@@ -82,22 +119,76 @@ pub mod report {
 
     /// Parsuje wpisy testów z bufora.
     pub fn parse_cases<R: BufRead>(reader: R) -> Result<Vec<TestCase>, ReportError> {
-        todo!("iteruj po liniach, pomijaj komentarze i puste linie, użyj TestCase::from_line")
+        let mut cases = Vec::<TestCase>::new();
+        for line in reader.lines() {
+            let line = line.unwrap();
+            let line = line.trim();
+            if line.is_empty() || line.starts_with('#') {
+                continue;
+            }
+            let case = TestCase::from_line(&line)?;
+            cases.push(case);
+        }
+        if cases.is_empty() {
+            return Err(ReportError::NoCases);
+        }
+        Ok(cases)
     }
 
     /// Agreguje przypadki według pakietu.
     pub fn summarize_by_suite(cases: &[TestCase]) -> Vec<SuiteSummary> {
-        todo!("zlicz testy dla każdego suite i zwróć podsumowanie w kolejności alfabetycznej")
+        use std::collections::BTreeMap;
+
+        let mut map = BTreeMap::<&str, SuiteSummary>::new();
+        for case in cases {
+            let summary = map.entry(case.suite.as_str()).or_insert(SuiteSummary {
+                suite: case.suite.to_string(),
+                total: 0,
+                passed: 0,
+                failed: 0,
+                skipped: 0,
+                total_duration_ms: 0
+            });
+            let outcome_count = match case.outcome {
+                TestOutcome::Passed => &mut summary.passed,
+                TestOutcome::Failed => &mut summary.failed,
+                TestOutcome::Skipped => &mut summary.skipped
+            };
+            *outcome_count += 1;
+            summary.total += 1;
+            summary.total_duration_ms += case.duration_ms;
+        }
+        let summaries = map.into_values().collect::<Vec<_>>();
+        summaries
     }
 
     /// Formatuje podsumowanie w linie tekstowe.
     pub fn format_summary(summaries: &[SuiteSummary]) -> Vec<String> {
-        todo!("przygotuj opis pakietów zgodnie z wymaganym formatem")
+        let mut lines = Vec::<String>::new();
+        for summary in summaries {
+            let suffix = match summary.total {
+                0 => "ków",
+                1 => "ek",
+                2..=4 => "ki",
+                _ => "ków"
+            };
+            let line = format!(
+                "{} Checkout: {} przypad{} ({}: {}, {}: {}, {}: {}) - łączny czas {}ms",
+                summary.suite, summary.total, suffix, 
+                TestOutcome::Passed.label(), summary.passed, 
+                TestOutcome::Failed.label(), summary.failed, 
+                TestOutcome::Skipped.label(), summary.skipped, 
+                summary.total_duration_ms);
+            lines.push(line);
+        }
+        lines
     }
 
     /// Tworzy kompletny raport z wejścia.
     pub fn collect_report<R: BufRead>(reader: R) -> Result<Vec<String>, ReportError> {
-        todo!("połącz parse_cases, summarize_by_suite i format_summary, propagując błędy operatorem ?")
+        let cases = parse_cases(reader)?;
+        let summaries = summarize_by_suite(&cases);
+        Ok(format_summary(&summaries))
     }
 
     #[cfg(test)]
@@ -106,12 +197,55 @@ pub mod report {
 
         #[test]
         fn poprawnie_parsuje_pojedynczy_wpis() {
-            todo!("dodaj test parsowania zgodnie z instrukcją w README")
+            let input = "mocksuite::mockcase | pass | 100";
+            let case = TestCase::from_line(input).unwrap();
+            assert!(matches!(case.suite.as_str(), "mocksuite"));
+            assert!(matches!(case.case.as_str(), "mockcase"));
+            assert!(matches!(case.outcome, TestOutcome::Passed));
+            assert!(matches!(case.duration_ms, 100));
         }
 
         #[test]
         fn agreguje_statystyki_dla_pakietu() {
-            todo!("dodaj test, który sprawdza liczniki i czas dla summarize_by_suite")
+            let cases = vec![
+                TestCase {
+                    suite: "suite-a".to_string(),
+                    case: "case-a1".to_string(),
+                    outcome: TestOutcome::Passed,
+                    duration_ms: 10
+                },
+                TestCase {
+                    suite: "suite-a".to_string(),
+                    case: "case-a2".to_string(),
+                    outcome: TestOutcome::Failed,
+                    duration_ms: 20
+                },
+                TestCase {
+                    suite: "suite-b".to_string(),
+                    case: "case-b1".to_string(),
+                    outcome: TestOutcome::Skipped,
+                    duration_ms: 30
+                }
+            ];
+
+            let summaries = summarize_by_suite(&cases);
+            assert!(matches!(summaries.len(), 2));
+
+            let suite_a = &summaries[0];
+            assert!(matches!(suite_a.suite.as_str(), "suite-a"));
+            assert!(matches!(suite_a.total, 2));
+            assert!(matches!(suite_a.passed, 1));
+            assert!(matches!(suite_a.failed, 1));
+            assert!(matches!(suite_a.skipped, 0));
+            assert!(matches!(suite_a.total_duration_ms, 30));
+
+            let suite_b = &summaries[1];
+            assert!(matches!(suite_b.suite.as_str(), "suite-b"));
+            assert!(matches!(suite_b.total, 1));
+            assert!(matches!(suite_b.passed, 0));
+            assert!(matches!(suite_b.failed, 0));
+            assert!(matches!(suite_b.skipped, 1));
+            assert!(matches!(suite_b.total_duration_ms, 30));
         }
     }
 }
